@@ -3,6 +3,7 @@ import emailjs, { EmailJSResponseStatus } from "@emailjs/browser";
 import {
   ArrowRight,
   Disc3,
+  ExternalLink,
   Mail,
   MapPin,
   Menu,
@@ -112,6 +113,26 @@ function TikTokIcon({ size = 18 }) {
   );
 }
 
+function YouTubeIcon({ size = 18 }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M2.8 8.3A2.9 2.9 0 0 1 4.9 6.2c4.7-.7 9.5-.7 14.2 0a2.9 2.9 0 0 1 2.1 2.1c.6 2.5.6 4.9 0 7.4a2.9 2.9 0 0 1-2.1 2.1c-4.7.7-9.5.7-14.2 0a2.9 2.9 0 0 1-2.1-2.1 16.8 16.8 0 0 1 0-7.4Z" />
+      <path d="m10 15 5-3-5-3Z" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
 const heroImage =
   "/assets/hero-main.webp";
 const aboutImage = "/assets/our-story.jpg";
@@ -129,36 +150,137 @@ const emailJsTemplateId =
 const emailJsPublicKey =
   import.meta.env.VITE_EMAILJS_PUBLIC_KEY || "9SysWKdESH13Dvqrs";
 
-const featuredArtists = [
+const artists = [
   {
     name: "DJ Op Dot",
     image: "/assets/Djopdot.jpg",
+    role: "DJ, Hype Curator & Crowd Controller",
+    bio: "Built for late-night sets and high-energy turnups, DJ Op Dot brings club pressure, street rhythm, and crowd command into one signature experience.",
+    location: "Lagos, Nigeria",
+    spotlight: "Festival-ready mixes, club edits, and performance-driven branding.",
+    socials: {
+      instagram: "",
+      tiktok: "",
+      youtube: "",
+    },
+    release: {
+      title: "Night Shift",
+      type: "Live DJ Set",
+      coverImage: "/assets/Djopdot.jpg",
+      audioSrc: "",
+      duration: "02:46",
+      note: "Audio preview and direct streaming links will be added here.",
+    },
   },
   {
     name: "Pearl",
     image: "/assets/Pearl.jpg",
+    role: "Singer, Songwriter & Melodic Storyteller",
+    bio: "Pearl blends soft confidence with sharp songwriting, shaping records that feel intimate, feminine, and instantly memorable.",
+    location: "Abuja, Nigeria",
+    spotlight: "Emotion-led vocals, crossover-ready hooks, and visual storytelling.",
+    socials: {
+      instagram: "",
+      tiktok: "",
+      youtube: "",
+    },
+    release: {
+      title: "Soft Fire",
+      type: "Single",
+      coverImage: "/assets/Pearl.jpg",
+      audioSrc: "",
+      duration: "03:12",
+      note: "A streaming preview slot is ready for Pearl's featured release.",
+    },
   },
   {
     name: "Tekunbi",
     image: "/assets/Tekunbi.jpg",
+    role: "Afropop Artist & Hook Specialist",
+    bio: "Tekunbi delivers clean melodies, conversational lyrics, and replay value that sits comfortably between street-pop energy and polished radio appeal.",
+    location: "Lagos, Nigeria",
+    spotlight: "Catchy toplines, versatile collaborations, and commercial-ready singles.",
+    socials: {
+      instagram: "",
+      tiktok: "",
+      youtube: "",
+    },
+    release: {
+      title: "Outside Energy",
+      type: "EP Focus Track",
+      coverImage: "/assets/Tekunbi.jpg",
+      audioSrc: "",
+      duration: "02:58",
+      note: "Drop in the audio file or streaming embed when you're ready.",
+    },
   },
-];
-
-const allArtists = [
-  ...featuredArtists,
   {
     name: "Sheay",
     image: "/assets/Sheay.jpg",
+    role: "Alternative Voice & Mood Builder",
+    bio: "Sheay leans into textured vocals and atmospheric production, creating records that feel cinematic, moody, and deeply personal.",
+    location: "Lagos, Nigeria",
+    spotlight: "Alternative textures, visual identity, and slow-burn fan connection.",
+    socials: {
+      instagram: "",
+      tiktok: "",
+      youtube: "",
+    },
+    release: {
+      title: "After Hours",
+      type: "Visual Single",
+      coverImage: "/assets/Sheay.jpg",
+      audioSrc: "",
+      duration: "03:24",
+      note: "Perfect place for a teaser or official audio once provided.",
+    },
   },
   {
     name: "Wandey",
     image: "/assets/Wandey.jpg",
+    role: "Street Pop Artist & Performer",
+    bio: "Wandey brings bounce, charisma, and a direct connection to the street, with records designed to move fast from speakers to social feeds.",
+    location: "Ibadan, Nigeria",
+    spotlight: "Performance clips, energetic singles, and culture-first rollout ideas.",
+    socials: {
+      instagram: "",
+      tiktok: "",
+      youtube: "",
+    },
+    release: {
+      title: "No Dulling",
+      type: "Street Anthem",
+      coverImage: "/assets/Wandey.jpg",
+      audioSrc: "",
+      duration: "02:39",
+      note: "Streaming and promo links can plug straight into this player panel.",
+    },
   },
   {
     name: "Bella",
     image: "/assets/Bella.jpg",
+    role: "Rising Vocalist & Visual Muse",
+    bio: "Bella pairs confident vocals with a strong camera presence, making her profile ideal for music discovery, fashion-forward branding, and digital growth.",
+    location: "Lagos, Nigeria",
+    spotlight: "Artist story, platform growth, and standout cover art presentation.",
+    socials: {
+      instagram: "",
+      tiktok: "",
+      youtube: "",
+    },
+    release: {
+      title: "Velvet Motion",
+      type: "Debut Record",
+      coverImage: "/assets/Bella.jpg",
+      audioSrc: "",
+      duration: "03:05",
+      note: "This module is ready for Bella's first official preview clip.",
+    },
   },
 ];
+
+const featuredArtists = artists.slice(0, 3);
+const allArtists = artists;
 
 const releases = [
   { title: "Midnight Echoes", artist: "Zara Beats", type: "Single" },
@@ -226,20 +348,23 @@ const navItems = [
 ];
 
 function App() {
+  const [selectedArtist, setSelectedArtist] = useState(null);
+
   return (
     <div className="site-shell">
       <ScrollToTop />
       <Navbar />
       <main className="main-shell">
         <Routes>
-          <Route path="/" element={<HomePage />} />
+          <Route path="/" element={<HomePage onArtistSelect={setSelectedArtist} />} />
           <Route path="/about" element={<AboutPage />} />
           <Route path="/services" element={<ServicesPage />} />
-          <Route path="/talent" element={<TalentPage />} />
+          <Route path="/talent" element={<TalentPage onArtistSelect={setSelectedArtist} />} />
           <Route path="/contact" element={<ContactPage />} />
         </Routes>
       </main>
       <Footer />
+      <ArtistModal artist={selectedArtist} onClose={() => setSelectedArtist(null)} />
     </div>
   );
 }
@@ -311,7 +436,7 @@ function NavItem({ to, label, mobile = false }) {
   );
 }
 
-function HomePage() {
+function HomePage({ onArtistSelect }) {
   return (
     <>
       <section className="hero" style={{ backgroundImage: `url(${heroImage})` }}>
@@ -344,7 +469,7 @@ function HomePage() {
         <div className="container artist-grid">
           {featuredArtists.map((artist, index) => (
             <Reveal key={artist.name} variant="slide-up" delay={index * 90}>
-              <ArtistCard artist={artist} />
+              <ArtistCard artist={artist} onSelect={onArtistSelect} />
             </Reveal>
           ))}
         </div>
@@ -534,7 +659,7 @@ function ServicesPage() {
   );
 }
 
-function TalentPage() {
+function TalentPage({ onArtistSelect }) {
   return (
     <>
       <section className="page-header">
@@ -549,7 +674,7 @@ function TalentPage() {
       <section className="section">
         <div className="container artist-grid artist-grid-large">
           {allArtists.map((artist) => (
-            <ArtistCard key={artist.name} artist={artist} />
+            <ArtistCard key={artist.name} artist={artist} onSelect={onArtistSelect} />
           ))}
         </div>
       </section>
@@ -747,19 +872,182 @@ function ContactPage() {
   );
 }
 
-function ArtistCard({ artist }) {
+function ArtistCard({ artist, onSelect }) {
   return (
-    <article className="artist-card">
+    <button
+      type="button"
+      className="artist-card"
+      onClick={() => onSelect?.(artist)}
+      aria-label={`Open profile for ${artist.name}`}
+    >
       <div className="artist-image-wrap">
         <img src={artist.image} alt={artist.name} className="artist-image" />
         <div className="artist-overlay">
-          <button type="button" className="play-bubble" aria-label={`Listen to ${artist.name}`}>
+          <span className="play-bubble" aria-hidden="true">
             <Play size={30} fill="currentColor" />
-          </button>
+          </span>
         </div>
       </div>
+      <p className="artist-role">{artist.role}</p>
       <h3>{artist.name}</h3>
-    </article>
+    </button>
+  );
+}
+
+function ArtistModal({ artist, onClose }) {
+  useEffect(() => {
+    if (!artist) {
+      return undefined;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+
+    function handleKeyDown(event) {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    }
+
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [artist, onClose]);
+
+  if (!artist) {
+    return null;
+  }
+
+  const socialItems = [
+    { label: "Instagram", href: artist.socials.instagram, icon: InstagramIcon },
+    { label: "TikTok", href: artist.socials.tiktok, icon: TikTokIcon },
+    { label: "YouTube", href: artist.socials.youtube, icon: YouTubeIcon },
+  ];
+
+  return (
+    <div className="artist-modal-backdrop" onClick={onClose} role="presentation">
+      <section
+        className="artist-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="artist-modal-title"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <button
+          type="button"
+          className="artist-modal-close"
+          onClick={onClose}
+          aria-label="Close artist profile"
+        >
+          <X size={22} />
+        </button>
+
+        <div className="artist-modal-grid">
+          <div className="artist-modal-media">
+            <div className="artist-modal-portrait-wrap">
+              <img
+                src={artist.image}
+                alt={artist.name}
+                className="artist-modal-portrait"
+              />
+            </div>
+
+            <div className="artist-player-card">
+              <div className="artist-player-cover-wrap">
+                <img
+                  src={artist.release.coverImage}
+                  alt={`${artist.release.title} cover art`}
+                  className="artist-player-cover"
+                />
+                <span className="artist-player-type">{artist.release.type}</span>
+              </div>
+              <div className="artist-player-content">
+                <p className="artist-player-kicker">Featured release</p>
+                <h3>{artist.release.title}</h3>
+                <p className="artist-player-artist">{artist.name}</p>
+                <div className="artist-player-shell" aria-label="Audio player preview">
+                  <button type="button" className="artist-player-button" disabled>
+                    <Play size={18} fill="currentColor" />
+                  </button>
+                  <div className="artist-player-wave" aria-hidden="true">
+                    <span />
+                    <span />
+                    <span />
+                    <span />
+                    <span />
+                    <span />
+                    <span />
+                    <span />
+                  </div>
+                  <span className="artist-player-duration">{artist.release.duration}</span>
+                </div>
+                {artist.release.audioSrc ? (
+                  <audio className="artist-audio" controls src={artist.release.audioSrc}>
+                    Your browser does not support the audio element.
+                  </audio>
+                ) : (
+                  <p className="artist-player-note">{artist.release.note}</p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="artist-modal-copy">
+            <p className="artist-modal-kicker">Artist profile</p>
+            <h2 id="artist-modal-title">{artist.name}</h2>
+            <p className="artist-modal-role">{artist.role}</p>
+            <p className="artist-modal-bio">{artist.bio}</p>
+
+            <div className="artist-modal-meta">
+              <span className="artist-modal-chip">{artist.location}</span>
+              <span className="artist-modal-chip">{artist.spotlight}</span>
+            </div>
+
+            <div className="artist-social-panel">
+              <div className="artist-social-header">
+                <h3>Connect with {artist.name}</h3>
+                <p>Social links and platform destinations will plug in here.</p>
+              </div>
+              <div className="artist-social-grid">
+                {socialItems.map(({ label, href, icon: Icon }) =>
+                  href ? (
+                    <a
+                      key={label}
+                      href={href}
+                      className="artist-social-card"
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      <span className="artist-social-icon">
+                        <Icon size={20} />
+                      </span>
+                      <span className="artist-social-copy">
+                        <strong>{label}</strong>
+                        <small>Open official profile</small>
+                      </span>
+                      <ExternalLink size={18} />
+                    </a>
+                  ) : (
+                    <div key={label} className="artist-social-card is-disabled" aria-disabled="true">
+                      <span className="artist-social-icon">
+                        <Icon size={20} />
+                      </span>
+                      <span className="artist-social-copy">
+                        <strong>{label}</strong>
+                        <small>Link coming soon</small>
+                      </span>
+                    </div>
+                  )
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
   );
 }
 
