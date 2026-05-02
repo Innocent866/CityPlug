@@ -55,6 +55,10 @@ img {
   padding-top: 80px;
 }
 
+.main-shell-no-chrome {
+  padding-top: 0;
+}
+
 .container {
   width: min(1180px, calc(100% - 32px));
   margin: 0 auto;
@@ -842,6 +846,19 @@ img {
   color: rgba(255, 255, 255, 0.64);
 }
 
+.release-cover-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 12px;
+}
+
+.release-summary {
+  min-height: 4.4rem;
+  color: var(--text-muted);
+  line-height: 1.7;
+}
+
 .release-meta {
   display: flex;
   align-items: center;
@@ -897,6 +914,10 @@ img {
 
 .value-card {
   padding: 0;
+}
+
+.value-card.release-card {
+  padding: 2rem;
 }
 
 .value-badge,
@@ -1066,6 +1087,334 @@ img {
   padding: 2rem;
 }
 
+.release-hero {
+  background:
+    radial-gradient(circle at top left, rgba(227, 18, 18, 0.12), transparent 32%),
+    linear-gradient(180deg, rgba(13, 9, 8, 0.02), rgba(13, 9, 8, 0.04));
+}
+
+.release-hero-grid {
+  display: grid;
+  grid-template-columns: minmax(280px, 380px) minmax(0, 1fr);
+  gap: 3rem;
+  align-items: center;
+}
+
+.release-hero-cover img,
+.release-cover-fallback {
+  width: 100%;
+  border-radius: 24px;
+  box-shadow: var(--shadow);
+}
+
+.release-cover-fallback {
+  min-height: 320px;
+}
+
+.release-title {
+  margin-top: 1rem;
+}
+
+.release-subtitle {
+  margin-bottom: 0.7rem;
+}
+
+.release-detail-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem 1.5rem;
+  align-items: center;
+  color: var(--text-muted);
+}
+
+.admin-page {
+  background:
+    radial-gradient(circle at top right, rgba(227, 18, 18, 0.12), transparent 35%),
+    linear-gradient(180deg, rgba(13, 9, 8, 0.04), rgba(13, 9, 8, 0));
+}
+
+.admin-auth-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+}
+
+.admin-auth-shell {
+  display: flex;
+  justify-content: center;
+}
+
+.admin-auth-card,
+.admin-panel,
+.admin-list-panel {
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: var(--shadow);
+}
+
+.admin-auth-card {
+  width: min(420px, 100%);
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.admin-auth-card .page-title {
+  font-size: clamp(2.3rem, 6vw, 3.2rem);
+}
+
+.admin-auth-card .page-subtitle {
+  max-width: 30rem;
+  font-size: 1rem;
+}
+
+.admin-auth-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 68px;
+  height: 68px;
+  border-radius: 18px;
+  margin-bottom: 1.5rem;
+  background: rgba(227, 18, 18, 0.1);
+  color: var(--primary);
+}
+
+.admin-header,
+.admin-panel-header,
+.admin-list-card,
+.image-upload-row,
+.admin-card-actions,
+.admin-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.admin-header {
+  align-items: flex-end;
+}
+
+.admin-dark-button {
+  border-color: rgba(24, 17, 15, 0.12);
+  color: var(--text);
+}
+
+.admin-grid,
+.admin-list-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 2rem;
+}
+
+.admin-shell {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 2rem;
+  align-items: start;
+}
+
+.admin-sidebar {
+  position: sticky;
+  top: 104px;
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  padding: 1.4rem;
+  background: rgba(13, 9, 8, 0.98);
+  color: #fff;
+  box-shadow: var(--shadow);
+}
+
+.admin-sidebar-brand h2 {
+  margin: 0 0 0.5rem;
+  font-family: "Playfair Display", serif;
+  font-size: 2rem;
+}
+
+.admin-sidebar-brand p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.74);
+  line-height: 1.7;
+}
+
+.admin-sidebar-nav {
+  display: grid;
+  gap: 0.8rem;
+  margin-top: 1.4rem;
+}
+
+.admin-sidebar-link {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 0.8rem;
+  align-items: center;
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.78);
+  padding: 0.95rem 1rem;
+  text-align: left;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.admin-sidebar-link strong {
+  display: inline-flex;
+  min-width: 28px;
+  justify-content: center;
+  padding: 0.2rem 0.45rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  font-size: 0.8rem;
+}
+
+.admin-sidebar-link:hover,
+.admin-sidebar-link.is-active {
+  background: var(--primary);
+  border-color: transparent;
+  color: #fff;
+}
+
+.admin-main,
+.admin-stack {
+  display: grid;
+  gap: 2rem;
+}
+
+.admin-panel,
+.admin-list-panel {
+  padding: 1.5rem;
+}
+
+.admin-panel-header h2,
+.admin-list-panel h2 {
+  margin: 0;
+  font-family: "Playfair Display", serif;
+  font-size: 2rem;
+}
+
+.admin-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.admin-checkbox input {
+  width: auto;
+}
+
+.admin-feedback {
+  margin-top: 0;
+}
+
+.admin-list {
+  display: grid;
+  gap: 1rem;
+}
+
+.admin-list-card {
+  padding: 1rem 1.1rem;
+  border: 1px solid rgba(24, 17, 15, 0.08);
+  border-radius: 18px;
+  background: #fff;
+}
+
+.admin-message-card {
+  padding: 1.25rem;
+  border: 1px solid rgba(24, 17, 15, 0.08);
+  border-radius: 18px;
+  background: #fff;
+}
+
+.admin-message-card h3 {
+  margin: 0.75rem 0 0.5rem;
+  font-family: "Playfair Display", serif;
+  font-size: 1.4rem;
+}
+
+.admin-message-card p {
+  margin: 0;
+  color: var(--text-muted);
+  line-height: 1.75;
+}
+
+.admin-message-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+  align-items: center;
+}
+
+.admin-message-meta span {
+  color: var(--text-muted);
+  font-size: 0.92rem;
+}
+
+.admin-empty-state {
+  display: grid;
+  place-items: center;
+  gap: 0.8rem;
+  padding: 2.5rem 1.5rem;
+  border: 1px dashed rgba(24, 17, 15, 0.16);
+  border-radius: 18px;
+  text-align: center;
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.admin-list-copy {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.admin-list-copy strong {
+  font-size: 1rem;
+}
+
+.admin-list-copy span {
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
+
+.admin-delete-button {
+  color: #c62828;
+}
+
+.image-upload-field {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.image-upload-field > span {
+  color: var(--text-muted);
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.image-upload-row {
+  align-items: stretch;
+}
+
+.image-upload-row input[type="file"] {
+  width: min(240px, 100%);
+}
+
+.image-upload-preview {
+  width: 140px;
+  height: 140px;
+  overflow: hidden;
+  border-radius: 18px;
+  border: 1px solid rgba(24, 17, 15, 0.12);
+}
+
+.image-upload-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .success-title {
   color: #248449;
   font-weight: 700;
@@ -1176,7 +1525,11 @@ img {
   .split-layout,
   .talent-card,
   .artist-modal-grid,
-  .artist-player-card {
+  .artist-player-card,
+  .release-hero-grid,
+  .admin-grid,
+  .admin-list-grid,
+  .admin-shell {
     grid-template-columns: 1fr;
   }
 
@@ -1195,6 +1548,18 @@ img {
   .footer-bottom {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .admin-header,
+  .admin-actions,
+  .image-upload-row,
+  .admin-list-card {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .admin-sidebar {
+    position: static;
   }
 }
 
