@@ -2,6 +2,11 @@ const JSON_HEADERS = {
   "Content-Type": "application/json",
 };
 
+const API_BASE_URL = (
+  import.meta.env.VITE_API_BASE_URL ||
+  (import.meta.env.DEV ? "" : "https://cityplug.onrender.com")
+).replace(/\/$/, "");
+
 function withAuth(token) {
   return token
     ? {
@@ -12,7 +17,7 @@ function withAuth(token) {
 }
 
 async function request(path, options = {}) {
-  const response = await fetch(path, options);
+  const response = await fetch(`${API_BASE_URL}${path}`, options);
 
   if (response.status === 204) {
     return null;

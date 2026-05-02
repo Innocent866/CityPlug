@@ -8,7 +8,7 @@
     "api": "kill-port 4000 && nodemon --watch backend --ext js,mjs --signal SIGTERM backend/server.js",
     "dev": "concurrently -k \"npm:api\" \"npm:vite\"",
     "vite": "vite",
-    "build": "node ./node_modules/vite/bin/vite.js build",
+    "build": "vite build",
     "preview": "vite preview",
     "start": "node backend/server.js"
   },
