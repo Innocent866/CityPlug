@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import emailjs, { EmailJSResponseStatus } from "@emailjs/browser";
+import emailjs from "@emailjs/browser";
 import {
   ArrowRight,
   Disc3,

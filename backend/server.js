@@ -1,8 +1,8 @@
-import { createReadStream, existsSync, promises as fs } from "node:fs";
-import http from "node:http";
+import { existsSync, promises as fs } from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
+import express from "express";
 import mongoose from "mongoose";
 import { seedArtists, seedReleases } from "./seedData.js";
 
@@ -20,7 +20,6 @@ let databaseConnectPromise = null;
 const fallbackStore = {
   artists: structuredClone(seedArtists),
   releases: structuredClone(seedReleases),
-  messages: [],
 };
 
 const artistSchema = new mongoose.Schema(
@@ -75,300 +74,318 @@ const messageSchema = new mongoose.Schema(
 const Artist = mongoose.models.Artist || mongoose.model("Artist", artistSchema);
 const Release = mongoose.models.Release || mongoose.model("Release", releaseSchema);
 const Message = mongoose.models.Message || mongoose.model("Message", messageSchema);
-void connectToDatabase().catch(() => {
-  // Keep the API alive even if MongoDB is temporarily unavailable at startup.
-});
 
-const server = http.createServer(async (request, response) => {
-  setCorsHeaders(response);
+const app = express();
+
+app.use(express.json({ limit: "10mb" }));
+app.use((request, response, next) => {
+  response.setHeader("Access-Control-Allow-Origin", "*");
+  response.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  response.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
 
   if (request.method === "OPTIONS") {
-    response.writeHead(204);
-    response.end();
+    response.sendStatus(204);
     return;
   }
 
-  try {
-    const url = new URL(request.url || "/", `http://${request.headers.host}`);
-
-    if (url.pathname.startsWith("/api/")) {
-      await handleApiRequest(request, response, url);
-      return;
-    }
-
-    if (await serveStaticAsset(url.pathname, response)) {
-      return;
-    }
-
-    response.writeHead(404, { "Content-Type": "application/json" });
-    response.end(JSON.stringify({ error: "Not found" }));
-  } catch (error) {
-    console.error(error);
-    const statusCode = error.statusCode || 500;
-    response.writeHead(statusCode, { "Content-Type": "application/json" });
-    response.end(
-      JSON.stringify({
-        error: statusCode === 500 ? "Internal server error" : error.message,
-      })
-    );
-  }
+  next();
 });
 
-server.listen(port, host, () => {
+void connectToDatabase().catch(() => {
+  // Keep API alive if MongoDB is temporarily unavailable on boot.
+});
+
+app.get("/api/health", (_request, response) => {
+  response.json({
+    ok: true,
+    database: databaseReady ? "connected" : "disconnected",
+  });
+});
+
+app.get("/api/content", asyncHandler(async (_request, response) => {
+  response.json(await getContent());
+}));
+
+app.post("/api/auth/login", asyncHandler(async (request, response) => {
+  const { email = "", password = "" } = request.body || {};
+
+  if (
+    String(email).trim().toLowerCase() !== adminEmail.toLowerCase() ||
+    password !== adminPassword
+  ) {
+    response.status(401).json({ error: "Invalid email or password" });
+    return;
+  }
+
+  const token = randomUUID();
+  sessions.add(token);
+  response.json({ token });
+}));
+
+app.post("/api/auth/logout", (request, response) => {
+  const token = getBearerToken(request);
+  if (token) {
+    sessions.delete(token);
+  }
+
+  response.sendStatus(204);
+});
+
+app.get("/api/admin/content", requireAuth, asyncHandler(async (_request, response) => {
+  response.json(await getContent());
+}));
+
+app.get("/api/admin/messages", requireAuth, asyncHandler(async (_request, response) => {
+  await ensureDatabaseReady();
+  response.json(await getMessages());
+}));
+
+app.post("/api/messages", asyncHandler(async (request, response) => {
+  await ensureDatabaseReady();
+  const payload = sanitizeMessage(request.body || {});
+  const message = new Message({
+    id: randomUUID(),
+    ...payload,
+  });
+
+  await message.save();
+  response.status(201).json(toPublicDocument(message));
+}));
+
+app.post("/api/artists", requireAuth, asyncHandler(async (request, response) => {
+  const payload = sanitizeArtist(request.body || {});
+
+  if (!databaseReady) {
+    const artist = { id: randomUUID(), ...payload };
+    fallbackStore.artists.unshift(artist);
+    response.status(201).json(artist);
+    return;
+  }
+
+  const artist = new Artist({
+    id: randomUUID(),
+    ...payload,
+  });
+
+  await artist.save();
+  response.status(201).json(toPublicDocument(artist));
+}));
+
+app.post("/api/releases", requireAuth, asyncHandler(async (request, response) => {
+  const payload = sanitizeRelease(request.body || {});
+
+  if (!databaseReady) {
+    const release = { id: randomUUID(), ...payload };
+    fallbackStore.releases.unshift(release);
+    response.status(201).json(release);
+    return;
+  }
+
+  const release = new Release({
+    id: randomUUID(),
+    ...payload,
+  });
+
+  await release.save();
+  response.status(201).json(toPublicDocument(release));
+}));
+
+app.put("/api/artists/:artistId", requireAuth, asyncHandler(async (request, response) => {
+  const { artistId } = request.params;
+  const body = sanitizeArtist(request.body || {});
+
+  if (!databaseReady) {
+    const artistIndex = fallbackStore.artists.findIndex((artist) => artist.id === artistId);
+
+    if (artistIndex === -1) {
+      response.status(404).json({ error: "Artist not found" });
+      return;
+    }
+
+    const updatedArtist = { ...fallbackStore.artists[artistIndex], ...body, id: artistId };
+    fallbackStore.artists[artistIndex] = updatedArtist;
+    fallbackStore.releases = fallbackStore.releases.map((release) =>
+      release.artistId === artistId ? { ...release, artistName: updatedArtist.name } : release
+    );
+    response.json(updatedArtist);
+    return;
+  }
+
+  const updatedArtist = await Artist.findOneAndUpdate(
+    { id: artistId },
+    body,
+    { new: true, runValidators: true }
+  );
+
+  if (!updatedArtist) {
+    response.status(404).json({ error: "Artist not found" });
+    return;
+  }
+
+  await Release.updateMany({ artistId }, { $set: { artistName: updatedArtist.name } });
+  response.json(toPublicDocument(updatedArtist));
+}));
+
+app.delete("/api/artists/:artistId", requireAuth, asyncHandler(async (request, response) => {
+  const { artistId } = request.params;
+
+  if (!databaseReady) {
+    const artistIndex = fallbackStore.artists.findIndex((artist) => artist.id === artistId);
+
+    if (artistIndex === -1) {
+      response.status(404).json({ error: "Artist not found" });
+      return;
+    }
+
+    fallbackStore.artists.splice(artistIndex, 1);
+    fallbackStore.releases = fallbackStore.releases.map((release) =>
+      release.artistId === artistId ? { ...release, artistId: "" } : release
+    );
+    response.sendStatus(204);
+    return;
+  }
+
+  const deletedArtist = await Artist.findOneAndDelete({ id: artistId });
+
+  if (!deletedArtist) {
+    response.status(404).json({ error: "Artist not found" });
+    return;
+  }
+
+  await Release.updateMany({ artistId }, { $set: { artistId: "" } });
+  response.sendStatus(204);
+}));
+
+app.get("/api/releases/:identifier", asyncHandler(async (request, response) => {
+  const { identifier } = request.params;
+
+  if (!databaseReady) {
+    const release =
+      fallbackStore.releases.find((item) => item.slug === identifier) ||
+      fallbackStore.releases.find((item) => item.id === identifier);
+
+    if (!release) {
+      response.status(404).json({ error: "Release not found" });
+      return;
+    }
+
+    response.json(release);
+    return;
+  }
+
+  const release = await Release.findOne({
+    $or: [{ slug: identifier }, { id: identifier }],
+  }).lean();
+
+  if (!release) {
+    response.status(404).json({ error: "Release not found" });
+    return;
+  }
+
+  response.json(toPublicDocument(release));
+}));
+
+app.put("/api/releases/:releaseId", requireAuth, asyncHandler(async (request, response) => {
+  const { releaseId } = request.params;
+  const body = sanitizeRelease(request.body || {});
+
+  if (!databaseReady) {
+    const releaseIndex = fallbackStore.releases.findIndex((release) => release.id === releaseId);
+
+    if (releaseIndex === -1) {
+      response.status(404).json({ error: "Release not found" });
+      return;
+    }
+
+    const updatedRelease = { ...fallbackStore.releases[releaseIndex], ...body, id: releaseId };
+    fallbackStore.releases[releaseIndex] = updatedRelease;
+    response.json(updatedRelease);
+    return;
+  }
+
+  const updatedRelease = await Release.findOneAndUpdate(
+    { id: releaseId },
+    body,
+    { new: true, runValidators: true }
+  );
+
+  if (!updatedRelease) {
+    response.status(404).json({ error: "Release not found" });
+    return;
+  }
+
+  response.json(toPublicDocument(updatedRelease));
+}));
+
+app.delete("/api/releases/:releaseId", requireAuth, asyncHandler(async (request, response) => {
+  const { releaseId } = request.params;
+
+  if (!databaseReady) {
+    const releaseIndex = fallbackStore.releases.findIndex((release) => release.id === releaseId);
+
+    if (releaseIndex === -1) {
+      response.status(404).json({ error: "Release not found" });
+      return;
+    }
+
+    fallbackStore.releases.splice(releaseIndex, 1);
+    response.sendStatus(204);
+    return;
+  }
+
+  const deletedRelease = await Release.findOneAndDelete({ id: releaseId });
+
+  if (!deletedRelease) {
+    response.status(404).json({ error: "Release not found" });
+    return;
+  }
+
+  response.sendStatus(204);
+}));
+
+if (existsSync(distDir)) {
+  app.use(express.static(distDir));
+  app.get(/^(?!\/api).*/, (_request, response) => {
+    response.sendFile(path.join(distDir, "index.html"));
+  });
+}
+
+app.use((error, _request, response, _next) => {
+  console.error(error);
+  const statusCode = error.statusCode || 500;
+  response.status(statusCode).json({
+    error: statusCode === 500 ? "Internal server error" : error.message,
+  });
+});
+
+const server = app.listen(port, host, () => {
   console.log(`Cityplug backend listening on http://${host}:${port}`);
 });
 
-export { server };
+export { app, server };
 
-async function handleApiRequest(request, response, url) {
-  const method = request.method || "GET";
+function requireAuth(request, _response, next) {
+  const token = getBearerToken(request);
 
-  if (url.pathname === "/api/health") {
-    return sendJson(response, 200, {
-      ok: true,
-      database: databaseReady ? "connected" : "disconnected",
-    });
+  if (!token || !sessions.has(token)) {
+    const error = new Error("Unauthorized");
+    error.statusCode = 401;
+    next(error);
+    return;
   }
 
-  if (url.pathname === "/api/content" && method === "GET") {
-    const content = await getContent();
-    return sendJson(response, 200, content);
-  }
+  next();
+}
 
-  if (url.pathname === "/api/auth/login" && method === "POST") {
-    const body = await readJsonBody(request);
+function getBearerToken(request) {
+  const authHeader = request.headers.authorization || "";
+  return authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
+}
 
-    if (
-      String(body.email || "").trim().toLowerCase() !== adminEmail.toLowerCase() ||
-      (body.password || "") !== adminPassword
-    ) {
-      return sendJson(response, 401, { error: "Invalid email or password" });
-    }
-
-    const token = randomUUID();
-    sessions.add(token);
-    return sendJson(response, 200, { token });
-  }
-
-  if (url.pathname === "/api/auth/logout" && method === "POST") {
-    const token = getBearerToken(request);
-    if (token) {
-      sessions.delete(token);
-    }
-    return sendJson(response, 204, null);
-  }
-
-  if (url.pathname === "/api/admin/content" && method === "GET") {
-    ensureAuthenticated(request);
-    const content = await getContent();
-    return sendJson(response, 200, content);
-  }
-
-  if (url.pathname === "/api/admin/messages" && method === "GET") {
-    ensureAuthenticated(request);
-    await ensureDatabaseReady();
-    const messages = await getMessages();
-    return sendJson(response, 200, messages);
-  }
-
-  if (url.pathname === "/api/messages" && method === "POST") {
-    await ensureDatabaseReady();
-    const payload = sanitizeMessage(await readJsonBody(request));
-
-    const message = new Message({
-      id: randomUUID(),
-      ...payload,
-    });
-    await message.save();
-    return sendJson(response, 201, toPublicDocument(message));
-  }
-
-  if (url.pathname === "/api/artists" && method === "POST") {
-    ensureAuthenticated(request);
-    const payload = sanitizeArtist(await readJsonBody(request));
-
-    if (!databaseReady) {
-      const artist = { id: randomUUID(), ...payload };
-      fallbackStore.artists.unshift(artist);
-      return sendJson(response, 201, artist);
-    }
-
-    const artist = new Artist({
-      id: randomUUID(),
-      ...payload,
-    });
-    await artist.save();
-    return sendJson(response, 201, toPublicDocument(artist));
-  }
-
-  if (url.pathname === "/api/releases" && method === "POST") {
-    ensureAuthenticated(request);
-    const payload = sanitizeRelease(await readJsonBody(request));
-
-    if (!databaseReady) {
-      const release = { id: randomUUID(), ...payload };
-      fallbackStore.releases.unshift(release);
-      return sendJson(response, 201, release);
-    }
-
-    const release = new Release({
-      id: randomUUID(),
-      ...payload,
-    });
-    await release.save();
-    return sendJson(response, 201, toPublicDocument(release));
-  }
-
-  if (url.pathname.startsWith("/api/artists/")) {
-    ensureAuthenticated(request);
-    const artistId = decodeURIComponent(url.pathname.replace("/api/artists/", ""));
-
-    if (method === "PUT") {
-      const body = sanitizeArtist(await readJsonBody(request));
-
-      if (!databaseReady) {
-        const artistIndex = fallbackStore.artists.findIndex((artist) => artist.id === artistId);
-
-        if (artistIndex === -1) {
-          return sendJson(response, 404, { error: "Artist not found" });
-        }
-
-        const updatedArtist = { ...fallbackStore.artists[artistIndex], ...body, id: artistId };
-        fallbackStore.artists[artistIndex] = updatedArtist;
-        fallbackStore.releases = fallbackStore.releases.map((release) =>
-          release.artistId === artistId ? { ...release, artistName: updatedArtist.name } : release
-        );
-        return sendJson(response, 200, updatedArtist);
-      }
-
-      const updatedArtist = await Artist.findOneAndUpdate(
-        { id: artistId },
-        body,
-        { new: true, runValidators: true }
-      );
-
-      if (!updatedArtist) {
-        return sendJson(response, 404, { error: "Artist not found" });
-      }
-
-      await Release.updateMany(
-        { artistId },
-        { $set: { artistName: updatedArtist.name } }
-      );
-
-      return sendJson(response, 200, toPublicDocument(updatedArtist));
-    }
-
-    if (method === "DELETE") {
-      if (!databaseReady) {
-        const artistIndex = fallbackStore.artists.findIndex((artist) => artist.id === artistId);
-
-        if (artistIndex === -1) {
-          return sendJson(response, 404, { error: "Artist not found" });
-        }
-
-        fallbackStore.artists.splice(artistIndex, 1);
-        fallbackStore.releases = fallbackStore.releases.map((release) =>
-          release.artistId === artistId ? { ...release, artistId: "" } : release
-        );
-        return sendJson(response, 204, null);
-      }
-
-      const deletedArtist = await Artist.findOneAndDelete({ id: artistId });
-
-      if (!deletedArtist) {
-        return sendJson(response, 404, { error: "Artist not found" });
-      }
-
-      await Release.updateMany(
-        { artistId },
-        { $set: { artistId: "" } }
-      );
-
-      return sendJson(response, 204, null);
-    }
-  }
-
-  if (url.pathname.startsWith("/api/releases/")) {
-    const param = decodeURIComponent(url.pathname.replace("/api/releases/", ""));
-
-    if (method === "GET") {
-      if (!databaseReady) {
-        const release =
-          fallbackStore.releases.find((item) => item.slug === param) ||
-          fallbackStore.releases.find((item) => item.id === param);
-
-        if (!release) {
-          return sendJson(response, 404, { error: "Release not found" });
-        }
-
-        return sendJson(response, 200, release);
-      }
-
-      const release = await Release.findOne({
-        $or: [{ slug: param }, { id: param }],
-      }).lean();
-
-      if (!release) {
-        return sendJson(response, 404, { error: "Release not found" });
-      }
-
-      return sendJson(response, 200, toPublicDocument(release));
-    }
-
-    ensureAuthenticated(request);
-
-    if (method === "PUT") {
-      const body = sanitizeRelease(await readJsonBody(request));
-
-      if (!databaseReady) {
-        const releaseIndex = fallbackStore.releases.findIndex((release) => release.id === param);
-
-        if (releaseIndex === -1) {
-          return sendJson(response, 404, { error: "Release not found" });
-        }
-
-        const updatedRelease = { ...fallbackStore.releases[releaseIndex], ...body, id: param };
-        fallbackStore.releases[releaseIndex] = updatedRelease;
-        return sendJson(response, 200, updatedRelease);
-      }
-
-      const updatedRelease = await Release.findOneAndUpdate(
-        { id: param },
-        body,
-        { new: true, runValidators: true }
-      );
-
-      if (!updatedRelease) {
-        return sendJson(response, 404, { error: "Release not found" });
-      }
-
-      return sendJson(response, 200, toPublicDocument(updatedRelease));
-    }
-
-    if (method === "DELETE") {
-      if (!databaseReady) {
-        const releaseIndex = fallbackStore.releases.findIndex((release) => release.id === param);
-
-        if (releaseIndex === -1) {
-          return sendJson(response, 404, { error: "Release not found" });
-        }
-
-        fallbackStore.releases.splice(releaseIndex, 1);
-        return sendJson(response, 204, null);
-      }
-
-      const deletedRelease = await Release.findOneAndDelete({ id: param });
-
-      if (!deletedRelease) {
-        return sendJson(response, 404, { error: "Release not found" });
-      }
-
-      return sendJson(response, 204, null);
-    }
-  }
-
-  sendJson(response, 404, { error: "Not found" });
+function asyncHandler(handler) {
+  return (request, response, next) => {
+    Promise.resolve(handler(request, response, next)).catch(next);
+  };
 }
 
 async function getContent() {
@@ -445,7 +462,6 @@ async function ensureDatabaseReady() {
   }
 }
 
-
 async function seedDatabase() {
   const [artistCount, releaseCount] = await Promise.all([
     Artist.estimatedDocumentCount(),
@@ -459,43 +475,6 @@ async function seedDatabase() {
   if (releaseCount === 0) {
     await Release.insertMany(seedReleases);
   }
-}
-
-function ensureAuthenticated(request) {
-  const token = getBearerToken(request);
-
-  if (!token || !sessions.has(token)) {
-    const error = new Error("Unauthorized");
-    error.statusCode = 401;
-    throw error;
-  }
-}
-
-function getBearerToken(request) {
-  const authHeader = request.headers.authorization || "";
-  return authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
-}
-
-function setCorsHeaders(response) {
-  response.setHeader("Access-Control-Allow-Origin", "*");
-  response.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  response.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-}
-
-async function readJsonBody(request) {
-  const chunks = [];
-
-  for await (const chunk of request) {
-    chunks.push(chunk);
-  }
-
-  const rawBody = Buffer.concat(chunks).toString("utf8");
-
-  if (!rawBody) {
-    return {};
-  }
-
-  return JSON.parse(rawBody);
 }
 
 function sanitizeArtist(body) {
@@ -517,6 +496,7 @@ function sanitizeArtist(body) {
 
 function sanitizeRelease(body) {
   const title = String(body.title || "").trim();
+
   return {
     slug: slugify(String(body.slug || title)),
     title,
@@ -560,64 +540,6 @@ function toPublicDocument(document) {
     typeof document.toObject === "function" ? document.toObject() : document;
   const { _id, createdAt, updatedAt, ...publicDocument } = plainDocument;
   return publicDocument;
-}
-
-async function serveStaticAsset(pathname, response) {
-  if (!existsSync(distDir)) {
-    return false;
-  }
-
-  const cleanPath = pathname === "/" ? "/index.html" : pathname;
-  const targetPath = path.join(distDir, cleanPath);
-  const resolvedPath = path.resolve(targetPath);
-
-  if (!resolvedPath.startsWith(distDir)) {
-    return false;
-  }
-
-  if (existsSync(resolvedPath)) {
-    response.writeHead(200, { "Content-Type": getMimeType(resolvedPath) });
-    createReadStream(resolvedPath).pipe(response);
-    return true;
-  }
-
-  const indexPath = path.join(distDir, "index.html");
-
-  if (existsSync(indexPath)) {
-    response.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-    createReadStream(indexPath).pipe(response);
-    return true;
-  }
-
-  return false;
-}
-
-function getMimeType(filePath) {
-  const extension = path.extname(filePath).toLowerCase();
-  const mimeTypes = {
-    ".css": "text/css; charset=utf-8",
-    ".html": "text/html; charset=utf-8",
-    ".js": "application/javascript; charset=utf-8",
-    ".jpeg": "image/jpeg",
-    ".jpg": "image/jpeg",
-    ".json": "application/json; charset=utf-8",
-    ".png": "image/png",
-    ".svg": "image/svg+xml",
-    ".webp": "image/webp",
-  };
-
-  return mimeTypes[extension] || "application/octet-stream";
-}
-
-function sendJson(response, statusCode, payload) {
-  if (statusCode === 204) {
-    response.writeHead(204);
-    response.end();
-    return;
-  }
-
-  response.writeHead(statusCode, { "Content-Type": "application/json; charset=utf-8" });
-  response.end(JSON.stringify(payload));
 }
 
 async function loadEnvConfig() {
